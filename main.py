@@ -152,6 +152,19 @@ def save_location():
     # Koordinatları listeye ekle
     coordinates_listbox.insert(tk.END, f"{point_name}: ({last_click_x}, {last_click_y})")
 
+
+def rename_coordinate_folder(old_name, new_name):
+    old_folder = os.path.join(coordinates_folder, old_name)
+    new_folder = os.path.join(coordinates_folder, new_name)
+
+    # Klasör varsa yeniden adlandır
+    if os.path.exists(old_folder):
+        os.rename(old_folder, new_folder)
+        print(f"Klasör ismi değiştirildi: {old_name} -> {new_name}")
+    else:
+        print(f"Hata: '{old_name}' klasörü bulunamadı.")
+
+
 # Seçili ismi değiştirme işlevi (Nokta veya Dikdörtgen)
 def update_name():
     if coordinates_listbox.curselection():
@@ -163,6 +176,7 @@ def update_name():
             coord_info = coord_text.split(":")[1]
             coordinates_listbox.delete(selected_index)
             coordinates_listbox.insert(selected_index, f"{new_name}: {coord_info}")
+            rename_coordinate_folder(rect_text.split(':')[0], new_name)
     elif rectangles_listbox.curselection():
         selected_index = rectangles_listbox.curselection()[0]
         new_name = name_entry.get()
@@ -172,6 +186,8 @@ def update_name():
             rect_info = rect_text.split(":")[1]
             rectangles_listbox.delete(selected_index)
             rectangles_listbox.insert(selected_index, f"{new_name}: {rect_info}")
+            rename_coordinate_folder(rect_text.split(':')[0], new_name)
+
 
 # Seçili öğeyi silme işlevi
 def delete_item():
@@ -356,10 +372,10 @@ name_entry.pack(fill=tk.X, padx=10, pady=5)
 button_frame = tk.Frame(right_frame)
 button_frame.pack(pady=10)
 
-update_button = tk.Button(button_frame, text="İsmi Güncelle", command=update_name)
+update_button = tk.Button(button_frame, text="Rename", command=update_name)
 update_button.pack(side=tk.LEFT, padx=10)
 
-delete_button = tk.Button(button_frame, text="Sil", command=delete_item)
+delete_button = tk.Button(button_frame, text="Delete", command=delete_item)
 delete_button.pack(side=tk.LEFT, padx=10)
 
 # Canvas monitör görüntüsünü barındıracak
