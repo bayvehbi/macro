@@ -17,7 +17,7 @@ rectangle_start_y = None
 root = tk.Tk()
 root.title("Monitör Seçimi ve Durumu")
 
-# Seçim modu: 1 -> Nokta, 2 -> Dikdörtgen
+# Seçim modu: 1 -> Point, 2 -> Rectangle
 selection_mode = tk.IntVar(value=1)
 # Ana dizin ve koordinat klasörlerini oluşturma
 storage_folder = "storage"
@@ -80,17 +80,29 @@ def on_monitor_select(event):
         monitor_info_label.config(text="Monitör Seçilmedi.")
 
 
-# Dikdörtgen kaydetme fonksiyonu
+# Rectangle kaydetme fonksiyonu
 def save_rectangle(rect_name, start_coords, end_coords):
-    # Dikdörtgeni listeye ekle
+    # Rectangle add to list
     rectangles_listbox.insert(tk.END, f"{rect_name}: ({start_coords[0]}, {start_coords[1]}) - ({end_coords[0]}, {end_coords[1]})")
-
+    
     # JSON olarak kaydet
     coords = {
         "start": start_coords,
         "end": end_coords
     }
-    save_to_json(rect_name, "Dikdörtgen", coords)
+    obj_folder = save_to_json(rect_name, "Rectangle", coords)
+
+    # Anlık ekran görüntüsünü al ve uygun yere kaydet
+    img = get_screenshot(f"({start_coords[0]}, {start_coords[1]}) - ({end_coords[0]}, {end_coords[1]})")
+    
+    # Klasör oluştur ve görüntüyü kaydet
+    if not os.path.exists(obj_folder):
+        os.makedirs(obj_folder)
+    
+    image_path = os.path.join(obj_folder, "image.png")
+    img.save(image_path)
+    
+    print(f"Ekran görüntüsü kaydedildi: {image_path}")
 
 
 # Canvas tıklama olayı için işlev
@@ -111,46 +123,32 @@ def on_canvas_click(event):
         monitor_x = int(monitor['x'] + (canvas_x * monitor['width'] / monitor_canvas.winfo_width()))
         monitor_y = int(monitor['y'] + (canvas_y * monitor['height'] / monitor_canvas.winfo_height()))
 
-        # Nokta seçiliyse
+        # Point selected
         if selection_mode.get() == 1:
             last_click_x = monitor_x
             last_click_y = monitor_y
-            print(f"Nokta seçildi: ({monitor_x}, {monitor_y})")
+            print(f"Point selected: ({monitor_x}, {monitor_y})")
         
-        # Dikdörtgen seçiliyse
+        # Rectangle selected
         elif selection_mode.get() == 2:
             if rectangle_start_x is None and rectangle_start_y is None:
                 # İlk tıklama
                 rectangle_start_x = monitor_x
                 rectangle_start_y = monitor_y
-                print(f"Dikdörtgen başlangıç noktası: ({monitor_x}, {monitor_y})")
+                print(f"Rectangle starting point: ({monitor_x}, {monitor_y})")
             else:
-                # İkinci tıklama: Dikdörtgeni oluştur
+                # İkinci tıklama: Rectangle create
                 rectangle_end_x = monitor_x
                 rectangle_end_y = monitor_y
-                print(f"Dikdörtgen bitiş noktası: ({rectangle_end_x}, {rectangle_end_y})")
+                print(f"Rectangle ending point: ({rectangle_end_x}, {rectangle_end_y})")
 
-                # Dikdörtgeni kaydet
-                rect_name = name_entry.get() or "Dikdörtgen"
+                # Rectangle save
+                rect_name = name_entry.get() or "Rectangle"
                 save_rectangle(rect_name, [rectangle_start_x, rectangle_start_y], [rectangle_end_x, rectangle_end_y])
                 
-                # Dikdörtgeni sıfırla
+                # Rectangle reset
                 rectangle_start_x = None
                 rectangle_start_y = None
-
-# Koordinatları kaydet (Nokta için)
-def save_location():
-    global last_click_x, last_click_y
-
-    if last_click_x is None or last_click_y is None:
-        # Eğer canvas üzerinde hiç tıklama yapılmadıysa hata vermeden çık
-        return
-
-    # Noktayı isimlendirme
-    point_name = name_entry.get() or "Nokta"
-    
-    # Koordinatları listeye ekle
-    coordinates_listbox.insert(tk.END, f"{point_name}: ({last_click_x}, {last_click_y})")
 
 
 def rename_coordinate_folder(old_name, new_name):
@@ -165,7 +163,7 @@ def rename_coordinate_folder(old_name, new_name):
         print(f"Hata: '{old_name}' klasörü bulunamadı.")
 
 
-# Seçili ismi değiştirme işlevi (Nokta veya Dikdörtgen)
+# Seçili ismi değiştirme işlevi (Point or Rectangle)
 def update_name():
     if coordinates_listbox.curselection():
         selected_index = coordinates_listbox.curselection()[0]
@@ -176,12 +174,12 @@ def update_name():
             coord_info = coord_text.split(":")[1]
             coordinates_listbox.delete(selected_index)
             coordinates_listbox.insert(selected_index, f"{new_name}: {coord_info}")
-            rename_coordinate_folder(rect_text.split(':')[0], new_name)
+            rename_coordinate_folder(coord_text.split(':')[0], new_name)
     elif rectangles_listbox.curselection():
         selected_index = rectangles_listbox.curselection()[0]
         new_name = name_entry.get()
         if new_name:
-            # Dikdörtgen ismini güncelle
+            # Rectangle rename
             rect_text = rectangles_listbox.get(selected_index)
             rect_info = rect_text.split(":")[1]
             rectangles_listbox.delete(selected_index)
@@ -210,6 +208,27 @@ def run_click():
         pyautogui.click(x=coord_x, y=coord_y)
 
 
+
+def get_screenshot(rect_coords):
+    # Koordinatları düzgün şekilde işlemek için ayırıyoruz
+    rect_coords = rect_coords.strip().replace("(", "").replace(")", "")
+    start_coords_str, end_coords_str = rect_coords.split("-")
+    start_coords = [int(x.strip()) for x in start_coords_str.split(",")]
+    end_coords = [int(x.strip()) for x in end_coords_str.split(",")]
+
+    # Şimdiki ekran görüntüsünü al ve göster
+    with mss.mss() as sct:
+        monitor_region = {
+            "top": start_coords[1],
+            "left": start_coords[0],
+            "width": abs(end_coords[0] - start_coords[0]),
+            "height": abs(end_coords[1] - start_coords[1])
+        }
+        screenshot = sct.grab(monitor_region)
+        img = Image.frombytes("RGB", (screenshot.width, screenshot.height), screenshot.rgb)
+        return img
+
+
 # Show anlık fotoğraf alıp gösteren fonksiyon
 def show_current_rectangle_image_from_listbox():
     selected_rect = rectangles_listbox.curselection()
@@ -217,30 +236,14 @@ def show_current_rectangle_image_from_listbox():
         rect_text = rectangles_listbox.get(selected_rect[0])
         rect_name, rect_coords = rect_text.split(":")
         
-        # Koordinatları düzgün şekilde işlemek için ayırıyoruz
-        rect_coords = rect_coords.strip().replace("(", "").replace(")", "")
-        start_coords_str, end_coords_str = rect_coords.split("-")
-        start_coords = [int(x.strip()) for x in start_coords_str.split(",")]
-        end_coords = [int(x.strip()) for x in end_coords_str.split(",")]
-
-        # Şimdiki ekran görüntüsünü al ve göster
-        with mss.mss() as sct:
-            monitor_region = {
-                "top": start_coords[1],
-                "left": start_coords[0],
-                "width": abs(end_coords[0] - start_coords[0]),
-                "height": abs(end_coords[1] - start_coords[1])
-            }
-            screenshot = sct.grab(monitor_region)
-            img = Image.frombytes("RGB", (screenshot.width, screenshot.height), screenshot.rgb)
-
-            # Yeni bir pencere açarak görüntüyü göster
-            view_window = tk.Toplevel(root)
-            view_window.title(f"Güncel Görüntü: {rect_name.strip()}")
-            img_tk = ImageTk.PhotoImage(img)
-            label = tk.Label(view_window, image=img_tk)
-            label.image = img_tk  # Referans tutmak için
-            label.pack()
+        img = get_screenshot(rect_coords)
+        # Yeni bir pencere açarak görüntüyü göster
+        view_window = tk.Toplevel(root)
+        view_window.title(f"Güncel Görüntü: {rect_name.strip()}")
+        img_tk = ImageTk.PhotoImage(img)
+        label = tk.Label(view_window, image=img_tk)
+        label.image = img_tk  # Referans tutmak için
+        label.pack()
 
 
 # Show anlık fotoğraf alıp gösteren fonksiyon
@@ -248,32 +251,23 @@ def show_saved_rectangle_image_from_listbox():
     selected_rect = rectangles_listbox.curselection()
     if selected_rect:
         rect_text = rectangles_listbox.get(selected_rect[0])
-        rect_name, rect_coords = rect_text.split(":")
+        rect_name, _ = rect_text.split(":")
         
-        # Koordinatları düzgün şekilde işlemek için ayırıyoruz
-        rect_coords = rect_coords.strip().replace("(", "").replace(")", "")
-        start_coords_str, end_coords_str = rect_coords.split("-")
-        start_coords = [int(x.strip()) for x in start_coords_str.split(",")]
-        end_coords = [int(x.strip()) for x in end_coords_str.split(",")]
-
-        # Şimdiki ekran görüntüsünü al ve göster
-        with mss.mss() as sct:
-            monitor_region = {
-                "top": start_coords[1],
-                "left": start_coords[0],
-                "width": abs(end_coords[0] - start_coords[0]),
-                "height": abs(end_coords[1] - start_coords[1])
-            }
-            screenshot = sct.grab(monitor_region)
-            img = Image.frombytes("RGB", (screenshot.width, screenshot.height), screenshot.rgb)
-
-            # Yeni bir pencere açarak görüntüyü göster
+        # Klasörde kaydedilen resmi bul
+        image_path = os.path.join(coordinates_folder, rect_name.strip(), "image.png")
+        
+        if os.path.exists(image_path):
+            # Resmi yükle ve göster
+            img = Image.open(image_path)
             view_window = tk.Toplevel(root)
-            view_window.title(f"Güncel Görüntü: {rect_name.strip()}")
+            view_window.title(f"Kaydedilen Görüntü: {rect_name.strip()}")
             img_tk = ImageTk.PhotoImage(img)
             label = tk.Label(view_window, image=img_tk)
             label.image = img_tk  # Referans tutmak için
             label.pack()
+        else:
+            print(f"Görüntü bulunamadı: {image_path}")
+
 
 
 # JSON dosyasına kaydetme fonksiyonu
@@ -290,29 +284,54 @@ def save_to_json(unique_name, obj_type, coords):
     }
     
     # JSON dosyasını kaydet
-    json_path = os.path.join(obj_folder, f"{unique_name}.json")
+    json_path = os.path.join(obj_folder, "data.json")
     with open(json_path, 'w') as json_file:
         json.dump(data, json_file, indent=4)
 
     print(f"JSON kaydedildi: {json_path}")
 
+    return obj_folder
 
-# Nokta kaydetme fonksiyonu
+
+# Point save function
 def save_location():
     global last_click_x, last_click_y
 
     if last_click_x is None or last_click_y is None:
         return
 
-    # Noktayı isimlendirme
-    point_name = name_entry.get() or "Nokta"
+    # Name json
+    point_name = name_entry.get() or "Point"
     
     # Koordinatları listeye ekle
     coordinates_listbox.insert(tk.END, f"{point_name}: ({last_click_x}, {last_click_y})")
 
     # JSON olarak kaydet
     coords = [last_click_x, last_click_y]
-    save_to_json(point_name, "Nokta", coords)
+    save_to_json(point_name, "Point", coords)
+
+
+def load_coordinates_from_storage():
+    # Dizini kontrol et, varsa listeleri doldur
+    if os.path.exists(coordinates_folder):
+        for folder_name in os.listdir(coordinates_folder):
+            folder_path = os.path.join(coordinates_folder, folder_name)
+            json_file_path = os.path.join(folder_path, "data.json")
+
+            if os.path.isdir(folder_path) and os.path.exists(json_file_path):
+                # JSON dosyasını aç ve veriyi al
+                with open(json_file_path, 'r') as json_file:
+                    data = json.load(json_file)
+
+                # Koordinat türüne göre ilgili Listbox'a ekle
+                if data['type'] == 'Point':
+                    coords = data['coordinates']
+                    coordinates_listbox.insert(tk.END, f"{folder_name}: ({coords[0]}, {coords[1]})")
+                elif data['type'] == 'Rectangle':
+                    coords = data['coordinates']
+                    rectangles_listbox.insert(tk.END, f"{folder_name}: ({coords['start'][0]}, {coords['start'][1]}) - ({coords['end'][0]}, {coords['end'][1]})")
+    else:
+        print(f"Dizin '{coordinates_folder}' mevcut değil.")
 
 
 # Pencere yeniden boyutlandırıldığında güncellemeyi tetiklemek için gecikmeli mekanizma
@@ -351,17 +370,17 @@ right_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
 monitor_info_label = tk.Label(right_frame, text="Monitör Bilgisi Görüntüleniyor...", justify=tk.LEFT)
 monitor_info_label.pack(anchor="n")
 
-# Seçim modunu belirleyecek radio butonları (Nokta / Dikdörtgen)
+# Seçim modunu belirleyecek radio butonları (Point / Rectangle)
 radio_frame = tk.Frame(right_frame)
 radio_frame.pack(pady=10)
 
-radio_point = tk.Radiobutton(radio_frame, text="Nokta", variable=selection_mode, value=1)
+radio_point = tk.Radiobutton(radio_frame, text="Point", variable=selection_mode, value=1)
 radio_point.pack(side=tk.LEFT)
 
-radio_rectangle = tk.Radiobutton(radio_frame, text="Dikdörtgen", variable=selection_mode, value=2)
+radio_rectangle = tk.Radiobutton(radio_frame, text="Rectangle", variable=selection_mode, value=2)
 radio_rectangle.pack(side=tk.LEFT)
 
-# İsim giriş alanı (Nokta/Dikdörtgen için)
+# İsim giriş alanı (Point/Rectangle)
 name_label = tk.Label(right_frame, text="İsim:")
 name_label.pack(anchor="w")
 
@@ -389,7 +408,7 @@ monitor_canvas.bind("<Button-1>", on_canvas_click)
 button_frame = tk.Frame(right_frame)
 button_frame.pack(pady=10)
 
-# Koordinatları kaydetme butonu (Nokta için)
+# Koordinatları kaydetme butonu (Point)
 save_button = tk.Button(button_frame, text="Koordinat Kaydet", command=save_location)
 save_button.pack(side=tk.LEFT, padx=5)
 
@@ -398,10 +417,10 @@ show_coordinat_button = tk.Button(button_frame, text="Koordinat Göster", comman
 show_coordinat_button.pack(side=tk.LEFT, padx=5)
 
 # Show object button (For rectangle)
-show_object_button = tk.Button(button_frame, text="Görüntüyü Göster", command=save_location)
+show_object_button = tk.Button(button_frame, text="Görüntüyü Göster", command=show_saved_rectangle_image_from_listbox)
 show_object_button.pack(side=tk.LEFT, padx=5)
 
-# Koordinat listesi (Nokta)
+# Koordinat listesi (Point)
 coordinates_listbox = tk.Listbox(right_frame)
 coordinates_listbox.pack(fill=tk.X, pady=10)
 
@@ -409,7 +428,7 @@ coordinates_listbox.pack(fill=tk.X, pady=10)
 rectangles_listbox = tk.Listbox(right_frame)
 rectangles_listbox.pack(fill=tk.X, pady=10)
 
-# Koordinata tıklama butonu (Nokta için)
+# Koordinata tıklama butonu (Point)
 run_click_button = tk.Button(right_frame, text="Run Click", command=run_click)
 run_click_button.pack(pady=10)
 
@@ -421,6 +440,9 @@ right_frame.rowconfigure(0, weight=1)
 
 # Seçilen monitör değiştiğinde işleyici
 monitor_listbox.bind("<<ListboxSelect>>", on_monitor_select)
+
+# Program başlarken klasörleri tarayıp Listbox'ları doldur
+load_coordinates_from_storage()
 
 # Arayüzü başlatalım
 root.mainloop()
