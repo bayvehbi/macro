@@ -21,7 +21,7 @@ root.title("Monitör Seçimi ve Durumu")
 selection_mode = tk.IntVar(value=1)
 # Ana dizin ve koordinat klasörlerini oluşturma
 storage_folder = "storage"
-coordinates_folder = os.path.join(storage_folder, "coordinats")
+coordinates_folder = os.path.join(storage_folder, "coordinates")
 
 
 # Monitör bilgilerini al
