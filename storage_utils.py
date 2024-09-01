@@ -63,8 +63,7 @@ def load_coordinates_from_storage(coordinates_listbox, rectangles_listbox):
                         coordinates_listbox.insert(tk.END, f"{folder_name}: ({coords[0]}, {coords[1]})")
                     elif instance.type == 'Rectangle':
                         coords = data['coordinates']
-                        rectangles_listbox.insert(tk.END, f"{folder_name}: ({coords['start'][0]}, {coords['start'][1]}) - ({coords['end'][0]}, {coords['end'][1]})")
-
+                        rectangles_listbox.insert(tk.END, f"{data['type']}: {data['coordinates']}")
 
 # Ekran görüntüsü alma fonksiyonu (Bu fonksiyon monitor_utils.py'da da yer alabilir)
 def get_screenshot(rect_coords_str):

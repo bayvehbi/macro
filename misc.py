@@ -43,7 +43,11 @@ def show_current_rectangle_image_from_listbox(root):
 
     if selected_rect and selected_rect.name == "Rectangle":
         rect_text = selected_rect.listbox.get(selected_rect.listbox.curselection()[0])
-        rect_name, rect_coords = rect_text.split(":")
+        rect_name, rect_coords = rect_text.split(":", 1) 
+        rect_name = rect_name.strip()
+        rect_coords = rect_coords.strip()
+        rect_coords = eval(rect_coords)
+
         
         # Klasörde kaydedilen resmi bul
         image_path = os.path.join(storage_folder, rect_name.strip(), "image.png")

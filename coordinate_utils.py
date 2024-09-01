@@ -52,22 +52,6 @@ def run_click(coordinates_listbox):
         pyautogui.click(x=coord_x, y=coord_y)
 
 
-def show_current_rectangle_image_from_listbox(rectangles_listbox):
-    global root
-    selected_rect = rectangles_listbox.curselection()
-    if selected_rect:
-        rect_text = rectangles_listbox.get(selected_rect[0])
-        rect_name, rect_coords = rect_text.split(":")
-        
-        img = get_screenshot(rect_coords, mss)
-        view_window = tk.Toplevel(root)
-        view_window.title(f"Güncel Görüntü: {rect_name.strip()}")
-        img_tk = ImageTk.PhotoImage(img)
-        label = tk.Label(view_window, image=img_tk)
-        label.image = img_tk
-        label.pack()
-
-
 # Canvas tıklama olayı için işlev
 def on_canvas_click(event, monitor_listbox, monitors, monitor_canvas, draw_mode, name_entry, save_button, point_coord, rect_coord):
     global last_click_x, last_click_y, rectangle_start_x, rectangle_start_y
